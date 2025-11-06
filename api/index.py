@@ -2,7 +2,7 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V4 (La méthode "brutale" qui marche) ---
+# --- Cerveau V5 (La dernière chance) ---
 
 def smart_cleaner_fr(text: str) -> str:
     
@@ -14,6 +14,7 @@ def smart_cleaner_fr(text: str) -> str:
     cleaned_text = re.sub(fillers_dumb, ' ', text, flags=re.IGNORECASE)
     
     # Mots contextuels (mauvais au début ou après un point)
+    # Note: On cible le mot, PAS la ponctuation
     context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b'
     cleaned_text = re.sub(context_fillers, r'\1 ', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
 
@@ -23,12 +24,13 @@ def smart_cleaner_fr(text: str) -> str:
     cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
     
     # 2b. Corriger les "ponctuations multiples" (ex: ", ," ou ".,")
+    # C'EST LA LIGNE LA PLUS IMPORTANTE
     cleaned_text = re.sub(r'[\s,]{2,}', ' ', cleaned_text)
     
     # 2c. Supprimer toute ponctuation ou espace au TOUT DÉBUT
     cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
 
-    # 2d. Corriger les doubles espaces
+    # 2d. Corriger les doubles espaces (une 2e passe)
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
 
     # 2e. Remettre une majuscule au début
