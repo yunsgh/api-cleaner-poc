@@ -2,14 +2,30 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V12 (Test "Canari") ---
-# On ignore toute la logique de nettoyage.
-# On renvoie juste une réponse test.
+# --- Cerveau V13 (Votre Logique : "Tuer les virgules") ---
 
 def smart_cleaner_fr(text: str) -> str:
     
-    # ON NE FAIT RIEN, ON RETOURNE UN TEST
-    return "TEST V12 OK"
+    # ÉTAPE 1: On "tue" toutes les virgules (Votre idée)
+    cleaned_text = text.replace(',', '')
+    
+    # ÉTAPE 2: Suppression des mots (Maintenant facile)
+    
+    # Mots bêtes (toujours mauvais)
+    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
+    cleaned_text = re.sub(fillers_dumb, '', cleaned_text, flags=re.IGNORECASE)
+    
+    # Mots contextuels (mauvais au début ou après un point)
+    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b'
+    cleaned_text = re.sub(context_fillers, r'\1', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+
+    # ÉTAPE 3: Nettoyage final (juste les espaces)
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+    
+    if cleaned_text:
+        cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
+
+    return cleaned_text
 
 # --- Le reste du serveur est identique ---
 
@@ -29,10 +45,9 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             if lang == "fr":
-                # Ça va appeler notre fonction test
                 cleaned_text = smart_cleaner_fr(text_to_clean)
             else:
-                cleaned_text = "TEST V12 NON-FR"
+                cleaned_text = text_to_clean 
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
