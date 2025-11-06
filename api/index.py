@@ -2,33 +2,31 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V8 (La logique est corrigée à la source) ---
+# --- Cerveau V9 (La logique de nettoyage final est changée) ---
 
 def smart_cleaner_fr(text: str) -> str:
     
     # ÉTAPE 1: Remplacement "intelligent"
     # On supprime le mot ET la ponctuation/espace qui le suit
     
-    # Mots bêtes (toujours mauvais)
-    # [\s,]* = cible zéro ou plusieurs espaces OU virgules APRÈS le mot
     fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
     cleaned_text = re.sub(fillers_dumb, ' ', text, flags=re.IGNORECASE)
     
-    # Mots contextuels (mauvais au début ou après un point)
-    # On cible le mot ET sa ponctuation/espace
     context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b[\s,]*'
     cleaned_text = re.sub(context_fillers, r'\1 ', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
 
-    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Maintenant simple) ---
+    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Nouvelle Stratégie) ---
     
     # 2a. Corriger les "espace avant ponctuation" (ex: "mot ,")
     cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
     
-    # 2b. Supprimer toute ponctuation ou espace au TOUT DÉBUT
-    cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
-
-    # 2c. Corriger les doubles espaces
+    # 2b. Corriger les doubles espaces
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+
+    # 2c. LA CORRECTION V9 :
+    # Supprimer les virgules et espaces au début (la cause du bug ", ,")
+    # C'est une méthode "bête" mais fiable, pas du Regex.
+    cleaned_text = cleaned_text.lstrip(' ,')
 
     # 2d. Remettre une majuscule au début
     if cleaned_text:
