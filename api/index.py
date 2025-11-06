@@ -2,35 +2,24 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V10 (Logique inverse) ---
+# --- Cerveau V11 (Votre Logique : "Tuer les virgules") ---
 
 def smart_cleaner_fr(text: str) -> str:
     
-    # ÉTAPE 1: NETTOYAGE CHIRURGICAL (La nouvelle clé)
-    # On chasse les virgules/espaces inutiles AVANT de supprimer les mots.
+    # ÉTAPE 1: On "tue" toutes les virgules (Votre idée)
+    cleaned_text = text.replace(',', '')
     
-    # 1a. Remplace les "virgules multiples" (le bug ", ,") par une seule virgule + espace
-    # C'est la ligne qui corrige le bug.
-    cleaned_text = re.sub(r'[\s,]{2,}', ', ', text)
+    # ÉTAPE 2: Suppression des mots (Maintenant facile)
     
-    # 1b. Supprime les "espaces avant" virgule ou point.
-    cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
-    
-    # 1c. Supprime toute ponctuation/espace au TOUT DÉBUT.
-    cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
-
-    # ÉTAPE 2: Suppression des mots (Maintenant que c'est propre)
-    
-    # Mots bêtes (toujours mauvais) -> Remplacer par RIEN
-    # On cible aussi la virgule/espace qui suit.
-    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
+    # Mots bêtes (toujours mauvais)
+    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
     cleaned_text = re.sub(fillers_dumb, '', cleaned_text, flags=re.IGNORECASE)
     
     # Mots contextuels (mauvais au début ou après un point)
-    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b[\s,]*'
+    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b'
     cleaned_text = re.sub(context_fillers, r'\1', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
 
-    # ÉTAPE 3: Nettoyage final post-suppression
+    # ÉTAPE 3: Nettoyage final (juste les espaces)
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
     
     if cleaned_text:
