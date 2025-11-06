@@ -2,33 +2,37 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V9 (La logique de nettoyage final est changée) ---
+# --- Cerveau V10 (Logique inverse) ---
 
 def smart_cleaner_fr(text: str) -> str:
     
-    # ÉTAPE 1: Remplacement "intelligent"
-    # On supprime le mot ET la ponctuation/espace qui le suit
+    # ÉTAPE 1: NETTOYAGE CHIRURGICAL (La nouvelle clé)
+    # On chasse les virgules/espaces inutiles AVANT de supprimer les mots.
     
-    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
-    cleaned_text = re.sub(fillers_dumb, ' ', text, flags=re.IGNORECASE)
+    # 1a. Remplace les "virgules multiples" (le bug ", ,") par une seule virgule + espace
+    # C'est la ligne qui corrige le bug.
+    cleaned_text = re.sub(r'[\s,]{2,}', ', ', text)
     
-    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b[\s,]*'
-    cleaned_text = re.sub(context_fillers, r'\1 ', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-
-    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Nouvelle Stratégie) ---
-    
-    # 2a. Corriger les "espace avant ponctuation" (ex: "mot ,")
+    # 1b. Supprime les "espaces avant" virgule ou point.
     cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
     
-    # 2b. Corriger les doubles espaces
+    # 1c. Supprime toute ponctuation/espace au TOUT DÉBUT.
+    cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
+
+    # ÉTAPE 2: Suppression des mots (Maintenant que c'est propre)
+    
+    # Mots bêtes (toujours mauvais) -> Remplacer par RIEN
+    # On cible aussi la virgule/espace qui suit.
+    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
+    cleaned_text = re.sub(fillers_dumb, '', cleaned_text, flags=re.IGNORECASE)
+    
+    # Mots contextuels (mauvais au début ou après un point)
+    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b[\s,]*'
+    cleaned_text = re.sub(context_fillers, r'\1', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+
+    # ÉTAPE 3: Nettoyage final post-suppression
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-
-    # 2c. LA CORRECTION V9 :
-    # Supprimer les virgules et espaces au début (la cause du bug ", ,")
-    # C'est une méthode "bête" mais fiable, pas du Regex.
-    cleaned_text = cleaned_text.lstrip(' ,')
-
-    # 2d. Remettre une majuscule au début
+    
     if cleaned_text:
         cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
 
