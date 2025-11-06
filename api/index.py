@@ -2,42 +2,41 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V5 (La dernière chance) ---
+# --- Cerveau V7 (Nouvelle Logique de Nettoyage) ---
 
 def smart_cleaner_fr(text: str) -> str:
     
-    # ÉTAPE 1: Remplacement "brutal"
-    # On remplace TOUS les fillers par un simple ESPACE.
+    # ÉTAPE 1: Remplacement des mots (la source du bug)
     
-    # Mots bêtes (toujours mauvais)
+    # Mots bêtes (toujours mauvais) -> Remplacer par RIEN
     fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
-    cleaned_text = re.sub(fillers_dumb, ' ', text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(fillers_dumb, '', text, flags=re.IGNORECASE)
     
-    # Mots contextuels (mauvais au début ou après un point)
-    # Note: On cible le mot, PAS la ponctuation
+    # Mots contextuels (mauvais au début ou après un point) -> Remplacer par RIEN
     context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b'
-    cleaned_text = re.sub(context_fillers, r'\1 ', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+    cleaned_text = re.sub(context_fillers, r'\1', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
 
-    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Chirurgical) ---
+    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Nouvelle Stratégie) ---
+    # À ce stade, on a le bug : ", , je pense, donc je suis."
     
-    # 2a. Corriger les "espace avant ponctuation" (ex: "mot ,")
-    cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
+    # 2a. Corriger les espaces multiples (les réduire à un seul)
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
     
-    # 2b. Corriger les "ponctuations multiples" (ex: ", ," ou ".,")
-    # C'EST LA LIGNE LA PLUS IMPORTANTE
-    cleaned_text = re.sub(r'[\s,]{2,}', ' ', cleaned_text)
+    # 2b. Corriger les "virgules multiples" (LA CLÉ !)
+    # Remplace "(virgule)(espace ou virgule)" plusieurs fois par une seule virgule
+    cleaned_text = re.sub(r'(,\s*){2,}', ',', cleaned_text)
     
     # 2c. Supprimer toute ponctuation ou espace au TOUT DÉBUT
     cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
 
-    # 2d. Corriger les doubles espaces (une 2e passe)
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+    # 2d. Corriger les "espace avant ponctuation"
+    cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
 
     # 2e. Remettre une majuscule au début
     if cleaned_text:
         cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
 
-    return cleaned_text
+    return cleaned_text.strip()
 
 # --- Le reste du serveur est identique ---
 
