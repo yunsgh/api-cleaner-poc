@@ -2,41 +2,39 @@ import json
 import re
 from http.server import BaseHTTPRequestHandler
 
-# --- Cerveau V7 (Nouvelle Logique de Nettoyage) ---
+# --- Cerveau V8 (La logique est corrigée à la source) ---
 
 def smart_cleaner_fr(text: str) -> str:
     
-    # ÉTAPE 1: Remplacement des mots (la source du bug)
+    # ÉTAPE 1: Remplacement "intelligent"
+    # On supprime le mot ET la ponctuation/espace qui le suit
     
-    # Mots bêtes (toujours mauvais) -> Remplacer par RIEN
-    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
-    cleaned_text = re.sub(fillers_dumb, '', text, flags=re.IGNORECASE)
+    # Mots bêtes (toujours mauvais)
+    # [\s,]* = cible zéro ou plusieurs espaces OU virgules APRÈS le mot
+    fillers_dumb = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
+    cleaned_text = re.sub(fillers_dumb, ' ', text, flags=re.IGNORECASE)
     
-    # Mots contextuels (mauvais au début ou après un point) -> Remplacer par RIEN
-    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b'
-    cleaned_text = re.sub(context_fillers, r'\1', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+    # Mots contextuels (mauvais au début ou après un point)
+    # On cible le mot ET sa ponctuation/espace
+    context_fillers = r'(^|\.|\!|\?)\s*(donc|alors)\b[\s,]*'
+    cleaned_text = re.sub(context_fillers, r'\1 ', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
 
-    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Nouvelle Stratégie) ---
-    # À ce stade, on a le bug : ", , je pense, donc je suis."
+    # --- ÉTAPE 2: LE NETTOYAGE FINAL (Maintenant simple) ---
     
-    # 2a. Corriger les espaces multiples (les réduire à un seul)
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
+    # 2a. Corriger les "espace avant ponctuation" (ex: "mot ,")
+    cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
     
-    # 2b. Corriger les "virgules multiples" (LA CLÉ !)
-    # Remplace "(virgule)(espace ou virgule)" plusieurs fois par une seule virgule
-    cleaned_text = re.sub(r'(,\s*){2,}', ',', cleaned_text)
-    
-    # 2c. Supprimer toute ponctuation ou espace au TOUT DÉBUT
+    # 2b. Supprimer toute ponctuation ou espace au TOUT DÉBUT
     cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
 
-    # 2d. Corriger les "espace avant ponctuation"
-    cleaned_text = re.sub(r'\s+([,\.])', r'\1', cleaned_text)
+    # 2c. Corriger les doubles espaces
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
 
-    # 2e. Remettre une majuscule au début
+    # 2d. Remettre une majuscule au début
     if cleaned_text:
         cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
 
-    return cleaned_text.strip()
+    return cleaned_text
 
 # --- Le reste du serveur est identique ---
 
