@@ -1,50 +1,50 @@
-import spacy
-from http.server import BaseHTTPRequestHandler
 import json
+import re # On importe le "Cerveau Léger"
+from http.server import BaseHTTPRequestHandler
 
-# Charger le modèle IA (léger) pour le français au démarrage
-nlp = spacy.load("fr_core_news_sm")
-print("Modèle 'fr' chargé.")
-# Tu peux ajouter ici les autres modèles (en, es) si tu veux les supporter
-
-# Définir nos listes de mots
-FILLER_WORDS_FR = {"euh", "bah", "ben", "hein", "bon", "voilà", "enfin", "en fait"}
-CONTEXT_WORDS_FR = {"donc", "alors", "genre"}
+# --- C'est notre nouveau "cerveau" (poids: 0 Ko) ---
 
 def smart_cleaner_fr(text: str) -> str:
-    """
-    Le "Nettoyeur Sémantique Contextuel".
-    """
-    doc = nlp(text)
-    cleaned_tokens = []
+    # 1. Nettoyage BÊTE (les mots toujours inutiles)
+    # On supprime les "euh", "bah", "ben", "en fait", etc.
+    # \b = s'assure que c'est un mot entier (pas "bah" dans "baha")
+    # re.IGNORECASE = ignore la majuscule/minuscule
+    fillers = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
+    cleaned_text = re.sub(fillers, '', text, flags=re.IGNORECASE)
     
-    for token in doc:
-        # 1. Nettoyage BÊTE
-        if token.text.lower() in FILLER_WORDS_FR:
-            continue
+    # 2. Nettoyage SMART (les mots contextuels)
+    # On supprime "Donc," ou "Alors," en DÉBUT de phrase.
+    # ^ = début de la chaîne
+    # \s* = n'importe quel espace (ou pas)
+    # ,? = une virgule optionnelle
+    context_fillers_start = r'^\s*(donc|alors),?\s*'
+    cleaned_text = re.sub(context_fillers_start, '', cleaned_text, count=1, flags=re.IGNORECASE)
 
-        # 2. Nettoyage SMART (Contextuel)
-        if token.text.lower() in CONTEXT_WORDS_FR:
-            # RÈGLE : Si "donc" est un ADVERBE (ADV) au début ou après ponctuation
-            if (token.i == 0 or doc[token.i - 1].is_punct) and token.pos_ == "ADV":
-                continue # C'est du remplissage, on saute
+    # 3. Nettoyage SMART (après un point)
+    # On supprime "Donc," ou "Alors," après un point.
+    # ([\.!?]) = capture le point/!/?
+    # \s+ = au moins un espace
+    # On remplace par le point + un espace (ex: ". Donc," -> ". ")
+    context_fillers_mid = r'([\.!?])\s+(donc|alors),?\s*'
+    cleaned_text = re.sub(context_fillers_mid, r'\1 ', cleaned_text, flags=re.IGNORECASE)
 
-        cleaned_tokens.append(token.text_with_ws)
+    # 4. Nettoyer les espaces doubles créés par la suppression
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+    # Nettoyer les doubles virgules ou virgules erronées
+    cleaned_text = re.sub(r'\s*,\s*', ', ', cleaned_text)
+    cleaned_text = re.sub(r'\s+\.', '.', cleaned_text)
 
-    return "".join(cleaned_tokens).strip()
+    return cleaned_text
 
-# --- C'est la partie "Serveur" de Vercel ---
-# Elle gère les requêtes web
+# --- Le reste du serveur est identique ---
 
 class handler(BaseHTTPRequestHandler):
     
     def do_POST(self):
-        # 1. Lire la requête du client
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         
         try:
-            # On attend un JSON comme : {"text": "...", "lang": "fr"}
             data = json.loads(post_data)
             text_to_clean = data.get('text')
             lang = data.get('lang')
@@ -53,15 +53,11 @@ class handler(BaseHTTPRequestHandler):
                 self._send_error("Le 'text' et la 'lang' sont requis.", 400)
                 return
 
-            # 2. Appeler notre "Cerveau"
             if lang == "fr":
                 cleaned_text = smart_cleaner_fr(text_to_clean)
             else:
-                # Pour l'instant, on ne gère que le FR
-                # On renverra le texte original pour les autres langues
-                cleaned_text = text_to_clean 
+                cleaned_text = text_to_clean # On ne gère que FR pour l'instant
 
-            # 3. Renvoyer la réponse (succès)
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
