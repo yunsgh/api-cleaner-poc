@@ -2,39 +2,43 @@ import json
 import re # On importe le "Cerveau Léger"
 from http.server import BaseHTTPRequestHandler
 
-# --- C'est notre nouveau "cerveau" (poids: 0 Ko) ---
+# --- Cerveau V3 (Avec "Nettoyage Chirurgical") ---
 
 def smart_cleaner_fr(text: str) -> str:
-    # 1. Nettoyage BÊTE (les mots toujours inutiles)
-    # On supprime les "euh", "bah", "ben", "en fait", etc.
-    # \b = s'assure que c'est un mot entier (pas "bah" dans "baha")
-    # re.IGNORECASE = ignore la majuscule/minuscule
-    fillers = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b'
+    
+    # ÉTAPE 1: Nettoyage BÊTE (les mots toujours inutiles)
+    # On cible le mot ET l'espace qui le suit
+    fillers = r'\b(euh|bah|ben|hein|bon|voilà|enfin|en fait|tu vois|genre|style)\b[\s,]*'
     cleaned_text = re.sub(fillers, '', text, flags=re.IGNORECASE)
     
-    # 2. Nettoyage SMART (les mots contextuels)
-    # On supprime "Donc," ou "Alors," en DÉBUT de phrase.
-    # ^ = début de la chaîne
-    # \s* = n'importe quel espace (ou pas)
-    # ,? = une virgule optionnelle
-    context_fillers_start = r'^\s*(donc|alors),?\s*'
-    cleaned_text = re.sub(context_fillers_start, '', cleaned_text, count=1, flags=re.IGNORECASE)
+    # ÉTAPE 2: Nettoyage SMART (Contextuel)
+    # On supprime "Donc," ou "Alors," en DÉBUT de phrase
+    context_fillers_start = r'^\s*(donc|alors)[\s,]+'
+    cleaned_text = re.sub(context_fillers_start, '', cleaned_text, count=1, flags=re.IGNORECASE | re.MULTILINE)
 
-    # 3. Nettoyage SMART (après un point)
     # On supprime "Donc," ou "Alors," après un point.
-    # ([\.!?]) = capture le point/!/?
-    # \s+ = au moins un espace
-    # On remplace par le point + un espace (ex: ". Donc," -> ". ")
-    context_fillers_mid = r'([\.!?])\s+(donc|alors),?\s*'
+    context_fillers_mid = r'([\.!?])\s+(donc|alors)[\s,]+'
     cleaned_text = re.sub(context_fillers_mid, r'\1 ', cleaned_text, flags=re.IGNORECASE)
 
-    # 4. Nettoyer les espaces doubles créés par la suppression
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-    # Nettoyer les doubles virgules ou virgules erronées
-    cleaned_text = re.sub(r'\s*,\s*', ', ', cleaned_text)
+    # --- ÉTAPE 3: LE NETTOYAGE FINAL (Le plus important) ---
+    
+    # 3a. Supprimer les virgules/espaces laissés au tout début
+    cleaned_text = re.sub(r'^[\s,]+', '', cleaned_text)
+    
+    # 3b. Corriger les doubles virgules ou virgules/espaces (ex: " , ,")
+    cleaned_text = re.sub(r'[\s,]{2,}', ' ', cleaned_text) # Remplace " , , " par " "
+    
+    # 3c. Corriger les "espace avant virgule" (ex: " mot , mot")
+    cleaned_text = re.sub(r'\s+,', ',', cleaned_text)
+    
+    # 3d. Corriger les "espace avant point" (ex: " mot .")
     cleaned_text = re.sub(r'\s+\.', '.', cleaned_text)
 
-    return cleaned_text
+    # 3e. Remettre un "capital" au début si on l'a supprimé
+    if cleaned_text:
+        cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
+
+    return cleaned_text.strip()
 
 # --- Le reste du serveur est identique ---
 
@@ -56,7 +60,7 @@ class handler(BaseHTTPRequestHandler):
             if lang == "fr":
                 cleaned_text = smart_cleaner_fr(text_to_clean)
             else:
-                cleaned_text = text_to_clean # On ne gère que FR pour l'instant
+                cleaned_text = text_to_clean 
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
